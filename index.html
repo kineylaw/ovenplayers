@@ -8,19 +8,27 @@
     <style>
         body {
             margin: 0;
+        }
+
+        .main-flex-container {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-evenly;
+            align-items: center;
+            gap: 1vw;
+            padding: 1vw;
+        }
+
+        .video-container {
             display: flex;
             flex-direction: column;
-            height: 100vh;
-            justify-content: center;
-            align-items: center;
-            background-color: #f0f0f0;
+            flex: auto;
+            gap: 0.5vw;
         }
 
         .player-container {
             width: 100%;
-            max-width: calc(50vh * 16 / 9);
-            height: calc(100vh / 2);
-            margin: 0.5em 0 1em 0;
+            aspect-ratio: 16 / 9;
             position: relative;
             overflow: hidden;
             background-color: #313B58;
@@ -39,8 +47,7 @@
             display: flex;
             align-items: stretch;
             width: 100%;
-            max-width: calc(50vh * 16 / 9);
-            margin-top: 1em;
+            gap: 0.5vw;
         }
 
         .url-input {
@@ -57,88 +64,145 @@
             border-radius: .25rem;
         }
 
-        .start-button {
+        .url-input-button {
             text-transform: uppercase;
             vertical-align: bottom;
             border: 0;
             box-shadow: 0 2px 5px 0 rgba(0, 0, 0, .2), 0 2px 10px 0 rgba(0, 0, 0, .1);
-            font-weight: 500;
+            font-weight: 600;
             padding: .4rem 1.5rem;
             font-size: .75rem;
             line-height: 1.5;
             border-radius: 0.25em;
             color: #fff;
+            background: dimgrey;
+            width: 100px;
+            cursor: pointer;
+        }
+
+        .button-start {
             background: #32bfc4;
+        }
+
+        .button-stop {
+            background: brown;
         }
     </style>
 </head>
 <body>
 
-<div class="input-group">
-    <input type="text"
-           id="inputStreamUrl"
-           class="url-input"
-           placeholder="Playback URL"
-           value="wss://playout-webrtc.cosmonova-broadcast.tv:3333/app/playout-Demo-4">
-    <button class="start-button" id="startPlayer1Button">Start</button>
-</div>
-<div class="player-container">
-    <div id="player1"></div>
-</div>
+<div class="main-flex-container">
+    <div class="video-container">
+        <div class="input-group">
+            <input type="text"
+                   id="liveStreamUrl"
+                   class="url-input"
+                   placeholder="Playback URL"
+                   value="wss://playout-webrtc.cosmonova-broadcast.tv:3333/app/playout-Demo-4">
+            <button class="url-input-button button-start" id="liveStreamPlayerButton">Start</button>
+        </div>
+        <div class="player-container">
+            <div id="player1"></div>
+        </div>
+    </div>
 
-<div class="input-group">
-    <input type="text"
-           id="inputStreamUrl2"
-           class="url-input"
-           placeholder="Playback URL">
-    <button class="start-button" id="startPlayer2Button">Start</button>
-</div>
-<div class="player-container">
-    <div id="player2"></div>
+    <div class="video-container">
+        <div class="input-group">
+            <input type="text"
+                   id="streamUrl"
+                   class="url-input"
+                   placeholder="Playback URL">
+            <button class="url-input-button" id="streamingButton">...</button>
+        </div>
+        <div class="player-container">
+            <div id="player2">
+                <video id="streamingPreviewVideo"></video>
+            </div>
+        </div>
+    </div>
 </div>
 
 
 <script src="https://cdn.jsdelivr.net/npm/ovenplayer/dist/ovenplayer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ovenlivekit@latest/dist/OvenLiveKit.min.js"></script>
+
 <script>
+    {
+        let liveStreamPlayer;
 
-    document.getElementById('startPlayer1Button').addEventListener('click', () => {
-        const inputStreamUrl = document.getElementById('inputStreamUrl').value;
+        let isPlaying = false;
+        let liveUrlInput = document.getElementById('liveStreamUrl');
+        const liveButton = document.getElementById('liveStreamPlayerButton');
+        liveButton.addEventListener('click', () => {
+            const willBePlaying = !isPlaying;
+            const liveStreamUrl = liveUrlInput.value;
 
-        const player1 = OvenPlayer.create("player1", {
-            "autoStart": true,
-            "autoFallback": true,
-            "mute": false,
-            "sources": [{
-                "type": "webrtc",
-                "file": inputStreamUrl
-            }],
-            "doubleTapToSeek": false
+            if (willBePlaying) {
+                liveStreamPlayer = OvenPlayer.create("player1", {
+                    "autoStart": true,
+                    "autoFallback": true,
+                    "mute": false,
+                    "sources": [
+                        {
+                            type: 'webrtc',
+                            file: liveStreamUrl,
+                        }
+                    ],
+                    "doubleTapToSeek": false
+                });
+
+                liveButton.classList.remove('button-start');
+                liveButton.classList.add('button-stop');
+                liveButton.innerHTML = 'STOP';
+            } else {
+                liveStreamPlayer?.remove();
+
+                liveButton.classList.remove('button-stop');
+                liveButton.classList.add('button-start');
+                liveButton.innerHTML = 'START';
+            }
+
+            isPlaying = willBePlaying;
         });
-    });
+    }
 
-    document.getElementById('startPlayer2Button').addEventListener('click', async () => {
-        const inputStreamUrl2 = document.getElementById('inputStreamUrl2').value;
+    {
+        const streamingButton = document.getElementById('streamingButton');
+        const streamUrlInput = document.getElementById('streamUrl');
 
-        async function startCapture() {
-            const mediaStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
+        const ovenLiveKit = OvenLiveKit.create();
+        ovenLiveKit.attachMedia(document.getElementById('streamingPreviewVideo'));
+        ovenLiveKit.getUserMedia({
+            audio: true,
+            video: true
+        }).then(function (stream) {
+            streamingButton.classList.remove('button-stop');
+            streamingButton.classList.add('button-start');
+            streamingButton.innerHTML = 'START';
 
-            const player2 = OvenPlayer.create("player2", {
-                "autoStart": true,
-                "autoFallback": true,
-                "mute": false,
-                "sources": [{
-                    "type": "webrtc",
-                    "file": `${inputStreamUrl2}?direction=send&transport=tcp`
-                }],
-                "doubleTapToSeek": false
+            let isStreaming = false;
+            streamingButton.addEventListener('click', async () => {
+                const willBeStreaming = !isStreaming;
+
+                if (willBeStreaming) {
+                    const url = streamUrlInput.value;
+                    ovenLiveKit.startStreaming(url);
+
+                    streamingButton.classList.remove('button-start');
+                    streamingButton.classList.add('button-stop');
+                    streamingButton.innerHTML = 'STOP';
+                } else {
+                    ovenLiveKit.stopStreaming();
+
+                    streamingButton.classList.remove('button-stop');
+                    streamingButton.classList.add('button-start');
+                    streamingButton.innerHTML = 'START';
+                }
+
+                isStreaming = willBeStreaming;
             });
-        }
-
-        startCapture().catch(error => {
-            console.error("Помилка захоплення медіа:", error);
         });
-    });
-
+    }
 </script>
 </body>
 </html>
