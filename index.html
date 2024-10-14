@@ -111,7 +111,8 @@
             <input type="text"
                    id="streamUrl"
                    class="url-input"
-                   placeholder="Playback URL">
+                   placeholder="Playback URL"
+                   value="wss://stage-webrtc.cosmonova-broadcast.tv:3333/app/playout-test-01?direction=send">
             <button class="url-input-button" id="streamingButton">...</button>
         </div>
         <div class="player-container">
@@ -171,6 +172,11 @@
         const streamUrlInput = document.getElementById('streamUrl');
 
         const ovenLiveKit = OvenLiveKit.create();
+
+        OvenLiveKit.getDevices().then(devices => {
+            console.log('devices:', devices);
+        });
+
         ovenLiveKit.attachMedia(document.getElementById('streamingPreviewVideo'));
         ovenLiveKit.getUserMedia({
             audio: true,
