@@ -274,36 +274,41 @@
             }
         }
 
-        function initializeStreaming() {
+        let isStreaming = false;
+        streamingButton.addEventListener('click', async () => {
+            const willBeStreaming = !isStreaming;
+
+            if (willBeStreaming) {
+                startStreaming();
+            } else {
+                stopStreaming();
+            }
+
+            isStreaming = willBeStreaming;
+        });
+
+        async function initializeStreaming(options) {
+            stopStreaming();
+
             const constraints = {
                 audio: resolveAudioUserMediaConfig(),
                 video: resolveVideoUserMediaConfig(),
             };
 
-            console.log('userMediaConstraints:', constraints);
-            ovenLiveKit.getUserMedia(constraints)
-                .then(function (stream) {
-                    streamingButton.classList.remove('button-stop');
-                    streamingButton.classList.add('button-start');
-                    streamingButton.innerHTML = 'START';
+            try {
+                console.log('userMediaConstraints:', constraints);
+                await ovenLiveKit.getUserMedia(constraints);
+                streamingButton.classList.remove('button-stop');
+                streamingButton.classList.add('button-start');
+                streamingButton.innerHTML = 'START';
+            } catch (e) {
+                streamingButton.classList.remove('button-stop', 'button-start');
+                streamingButton.innerHTML = '...';
+            }
 
-                    let isStreaming = false;
-                    streamingButton.addEventListener('click', async () => {
-                        const willBeStreaming = !isStreaming;
-
-                        if (willBeStreaming) {
-                            startStreaming();
-                        } else {
-                            stopStreaming();
-                        }
-
-                        isStreaming = willBeStreaming;
-                    });
-                })
-                .catch(e => {
-                    streamingButton.classList.remove('button-stop', 'button-start');
-                    streamingButton.innerHTML = '...';
-                });
+            if (options.autostart) {
+                startStreaming();
+            }
         }
 
         function resolveAudioUserMediaConfig() {
@@ -364,8 +369,8 @@
 
         initializeStreaming();
 
-        videoinputSelectElement.onchange = () => initializeStreaming();
-        audioinputSelectElement.onchange = () => initializeStreaming();
+        videoinputSelectElement.onchange = () => initializeStreaming({autostart: true});
+        audioinputSelectElement.onchange = () => initializeStreaming({autostart: true});
 
         // The input options initialization must be after initializing streaming.
         // Firefox needs the streaming to be initialized first with basic parameters to get access to labels of devices.
