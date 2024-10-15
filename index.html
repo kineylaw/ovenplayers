@@ -209,10 +209,11 @@
         const videoinputs = {};
         const audioinputs = {};
 
-        navigator.mediaDevices
-            .enumerateDevices()
-            .then(devices => {
-                // console.log('devices:', devices);
+        async function initializeInputOptions() {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+
+                console.log('devices:', devices);
                 for (const device of devices) {
                     if (!device.deviceId) {
                         continue;
@@ -225,6 +226,7 @@
                             audioinputs[device.deviceId] = device.label;
                     }
                 }
+
                 console.log('videoinputs:', videoinputs);
                 console.log('audioinputs:', audioinputs);
 
@@ -267,22 +269,18 @@
                 for (const [deviceId, lavel] of audioinputEntries) {
                     makeAudioinputOption(deviceId, lavel);
                 }
-
-            })
-            .catch((err) => {
-                console.error(`${err.name}: ${err.message}`);
-            });
+            } catch (e) {
+                console.error(`${e.name}: ${e.message}`);
+            }
+        }
 
         function initializeStreaming() {
-            console.log('initializeStreaming');
-
             const constraints = {
                 audio: resolveAudioUserMediaConfig(),
                 video: resolveVideoUserMediaConfig(),
             };
 
             console.log('userMediaConstraints:', constraints);
-
             ovenLiveKit.getUserMedia(constraints)
                 .then(function (stream) {
                     streamingButton.classList.remove('button-stop');
@@ -365,8 +363,13 @@
         }
 
         initializeStreaming();
+
         videoinputSelectElement.onchange = () => initializeStreaming();
         audioinputSelectElement.onchange = () => initializeStreaming();
+
+        // The input options initialization must be after initializing streaming.
+        // Firefox needs the streaming to be initialized first with basic parameters to get access to labels of devices.
+        initializeInputOptions();
     }
 </script>
 </body>
