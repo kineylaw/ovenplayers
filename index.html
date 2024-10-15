@@ -8,6 +8,7 @@
     <style>
         body {
             margin: 0;
+            font-family: sans-serif;
         }
 
         .main-grid-container {
@@ -86,6 +87,19 @@
         .button-stop {
             background: brown;
         }
+
+        .media-input-control-container label {
+            display: flex;
+        }
+
+        .media-input-control-container .media-input-label-text {
+            width: 110px;
+        }
+
+        .media-input-control-container select {
+            width: 100%;
+        }
+
     </style>
 </head>
 <body>
@@ -122,8 +136,18 @@
     <div class="main-grid-cell"></div>
 
     <div class="main-grid-cell">
-        <select id="videoinput"></select>
-        <select id="audioinput"></select>
+        <div class="media-input-control-container">
+            <label>
+                <span class="media-input-label-text">Video input:</span>
+                <select id="videoinput"></select>
+            </label>
+        </div>
+        <div class="media-input-control-container">
+            <label>
+                <span class="media-input-label-text">Audio input:</span>
+                <select id="audioinput"></select>
+            </label>
+        </div>
     </div>
 </div>
 
