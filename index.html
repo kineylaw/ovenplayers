@@ -10,7 +10,7 @@
             margin: 0;
         }
 
-        .main-flex-container {
+        .main-grid-container {
             grid-template-columns: 1fr 1fr;
             display: grid;
             justify-content: space-evenly;
@@ -18,7 +18,7 @@
             padding: 1vw;
         }
 
-        .video-container {
+        .main-grid-cell {
             display: flex;
             flex-direction: column;
             flex: auto;
@@ -90,8 +90,8 @@
 </head>
 <body>
 
-<div class="main-flex-container">
-    <div class="video-container">
+<div class="main-grid-container">
+    <div class="main-grid-cell">
         <div class="input-group">
             <input type="text"
                    id="liveStreamUrl"
@@ -105,7 +105,7 @@
         </div>
     </div>
 
-    <div class="video-container">
+    <div class="main-grid-cell">
         <div class="input-group">
             <input type="text"
                    id="streamUrl"
@@ -117,6 +117,13 @@
         <div class="player-container">
             <video id="streamingPreviewVideo"></video>
         </div>
+    </div>
+
+    <div class="main-grid-cell"></div>
+
+    <div class="main-grid-cell">
+        <select id="videoinput"></select>
+        <select id="audioinput"></select>
     </div>
 </div>
 
@@ -168,12 +175,131 @@
         const streamingButton = document.getElementById('streamingButton');
         const streamUrlInput = document.getElementById('streamUrl');
 
+        const videoinputSelectElement = document.getElementById('videoinput');
+        const audioinputSelectElement = document.getElementById('audioinput');
+
         const ovenLiveKit = OvenLiveKit.create();
 
         ovenLiveKit.attachMedia(document.getElementById('streamingPreviewVideo'));
-        ovenLiveKit.getUserMedia({
-            audio: true,
-            video: {
+
+        const videoinputs = {};
+        const audioinputs = {};
+
+        navigator.mediaDevices
+            .enumerateDevices()
+            .then(devices => {
+                // console.log('devices:', devices);
+                for (const device of devices) {
+                    if (!device.deviceId) {
+                        continue;
+                    }
+                    switch (device.kind) {
+                        case 'videoinput':
+                            videoinputs[device.deviceId] = device.label;
+                            break;
+                        case 'audioinput':
+                            audioinputs[device.deviceId] = device.label;
+                    }
+                }
+                console.log('videoinputs:', videoinputs);
+                console.log('audioinputs:', audioinputs);
+
+                function makeVideoinputOption(value, label) {
+                    // console.log(`makeVideoinputOption(${value}, ${label})`);
+                    const option = document.createElement('option');
+                    option.value = value;
+                    option.innerText = label;
+                    videoinputSelectElement.appendChild(option);
+                }
+
+                makeVideoinputOption('@off', 'Off');
+                const videoinputEntries = Object.entries(videoinputs);
+                if (videoinputEntries.length) {
+                    makeVideoinputOption('@auto', 'Auto');
+                    videoinputSelectElement.value = '@auto';
+                } else {
+                    videoinputSelectElement.value = '@off';
+                }
+                for (const [deviceId, label] of videoinputEntries) {
+                    makeVideoinputOption(deviceId, label);
+                }
+
+                function makeAudioinputOption(value, label) {
+                    // console.log(`makeAudioinputOption(${value}, ${label})`);
+                    const option = document.createElement('option');
+                    option.value = value;
+                    option.innerText = label;
+                    audioinputSelectElement.appendChild(option);
+                }
+
+                makeAudioinputOption('@off', 'Off');
+                const audioinputEntries = Object.entries(audioinputs);
+                if (audioinputEntries.length) {
+                    makeAudioinputOption('@auto', 'Auto');
+                    audioinputSelectElement.value = '@auto';
+                } else {
+                    audioinputSelectElement.value = '@off';
+                }
+                for (const [deviceId, lavel] of audioinputEntries) {
+                    makeAudioinputOption(deviceId, lavel);
+                }
+
+            })
+            .catch((err) => {
+                console.error(`${err.name}: ${err.message}`);
+            });
+
+        function initializeStreaming() {
+            console.log('initializeStreaming');
+
+            const constraints = {
+                audio: resolveAudioUserMediaConfig(),
+                video: resolveVideoUserMediaConfig(),
+            };
+
+            console.log('userMediaConstraints:', constraints);
+
+            ovenLiveKit.getUserMedia(constraints)
+                .then(function (stream) {
+                    streamingButton.classList.remove('button-stop');
+                    streamingButton.classList.add('button-start');
+                    streamingButton.innerHTML = 'START';
+
+                    let isStreaming = false;
+                    streamingButton.addEventListener('click', async () => {
+                        const willBeStreaming = !isStreaming;
+
+                        if (willBeStreaming) {
+                            startStreaming();
+                        } else {
+                            stopStreaming();
+                        }
+
+                        isStreaming = willBeStreaming;
+                    });
+                })
+                .catch(e => {
+                    streamingButton.classList.remove('button-stop', 'button-start');
+                    streamingButton.innerHTML = '...';
+                });
+        }
+
+        function resolveAudioUserMediaConfig() {
+            let deviceId = audioinputSelectElement.value;
+            switch (deviceId) {
+                case '@off':
+                    return false;
+                case '@auto':
+                    return true;
+                default:
+                    return {deviceId};
+            }
+        }
+
+        function resolveVideoUserMediaConfig() {
+            let deviceId = videoinputSelectElement.value;
+
+            const baseConfig = {
                 width: {
                     min: 1024,
                     ideal: 1280,
@@ -185,34 +311,38 @@
                     max: 1080
                 },
                 aspectRatio: 16 / 9
-            },
-        }).then(function (stream) {
+            }
+
+            switch (deviceId) {
+                case '@off':
+                    return false;
+                case '@auto':
+                    return baseConfig;
+                default:
+                    return {deviceId, ...baseConfig};
+            }
+        }
+
+        function startStreaming() {
+            const url = streamUrlInput.value;
+            ovenLiveKit.startStreaming(url);
+
+            streamingButton.classList.remove('button-start');
+            streamingButton.classList.add('button-stop');
+            streamingButton.innerHTML = 'STOP';
+        }
+
+        function stopStreaming() {
+            ovenLiveKit.stopStreaming();
+
             streamingButton.classList.remove('button-stop');
             streamingButton.classList.add('button-start');
             streamingButton.innerHTML = 'START';
+        }
 
-            let isStreaming = false;
-            streamingButton.addEventListener('click', async () => {
-                const willBeStreaming = !isStreaming;
-
-                if (willBeStreaming) {
-                    const url = streamUrlInput.value;
-                    ovenLiveKit.startStreaming(url);
-
-                    streamingButton.classList.remove('button-start');
-                    streamingButton.classList.add('button-stop');
-                    streamingButton.innerHTML = 'STOP';
-                } else {
-                    ovenLiveKit.stopStreaming();
-
-                    streamingButton.classList.remove('button-stop');
-                    streamingButton.classList.add('button-start');
-                    streamingButton.innerHTML = 'START';
-                }
-
-                isStreaming = willBeStreaming;
-            });
-        });
+        initializeStreaming();
+        videoinputSelectElement.onchange = () => initializeStreaming();
+        audioinputSelectElement.onchange = () => initializeStreaming();
     }
 </script>
 </body>
